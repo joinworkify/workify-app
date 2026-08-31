@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AddMemberDialog } from '@/components/org/add-member-dialog';
 import { MemberRow } from '@/components/org/member-row';
+import { UsageBar } from '@/components/org/usage-bar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
@@ -44,7 +45,7 @@ export default function TeamScreen() {
     );
   }
 
-  const { organization, role, members } = overview;
+  const { organization, role, members, usage } = overview;
   const isManager = role === 'owner' || role === 'admin';
 
   return (
@@ -67,6 +68,7 @@ export default function TeamScreen() {
                 </Text>
               </View>
             </View>
+            {usage ? <UsageBar usage={usage} label="Organization usage this period" /> : null}
             {isManager ? (
               <View className="items-start">
                 <AddMemberDialog isOwner={role === 'owner'} onAdd={addMember} />

@@ -21,7 +21,7 @@ function FloatingIcon({
   return (
     <View
       className={cn(
-        'bg-primary-foreground/15 absolute items-center justify-center rounded-2xl p-2.5',
+        'bg-primary-foreground/15 absolute items-center justify-center rounded-lg p-2.5',
         className
       )}>
       <Icon as={as} size={size} className="text-primary-foreground" />
@@ -49,7 +49,7 @@ export function AuthHero({ size = 92 }: { size?: number }) {
         <View
           // Deliberately literal white, not bg-background -- this badge sits on the brand-green
           // hero regardless of theme, so it must not follow dark mode's dark background token.
-          className="items-center justify-center rounded-3xl bg-white shadow-sm shadow-black/10"
+          className="items-center justify-center rounded-xl bg-white shadow-sm shadow-black/10"
           style={{ width: size, height: size }}>
           <Image
             source={logo}

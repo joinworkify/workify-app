@@ -1,6 +1,6 @@
-// Returns the caller's org + role + member roster for the "Team" tab. Mirrors workify-web's
-// app/(dashboard)/org/page.tsx + components/dashboard/OrgOverview.tsx data needs, minus
-// usage/billing charts (out of scope for mobile v1, see plan).
+// Returns the caller's org + role + member roster for the "Team" tab, plus each active member's
+// current-period AI-answer usage (workify_seats.ai_answers_used/allowance) so mobile shows the
+// same seat metering numbers as workify-web's dashboard -- no billing/purchase UI, just usage.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 
@@ -46,15 +46,29 @@ Deno.serve(async (req) => {
   }
   const organizationId = callerMembership.organization_id as string;
 
-  const [{ data: organization, error: orgError }, { data: members, error: membersError }] =
-    await Promise.all([
-      admin.from('workify_organizations').select('*').eq('id', organizationId).single(),
-      admin
-        .from('workify_organization_members')
-        .select('id, user_id, role, seat_status, invited_email, joined_at, permissions')
-        .eq('organization_id', organizationId)
-        .order('joined_at', { ascending: true }),
-    ]);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [
+    { data: organization, error: orgError },
+    { data: members, error: membersError },
+    { data: seats, error: seatsError },
+  ] = await Promise.all([
+    admin.from('workify_organizations').select('*').eq('id', organizationId).single(),
+    admin
+      .from('workify_organization_members')
+      .select('id, user_id, role, seat_status, invited_email, joined_at, permissions')
+      .eq('organization_id', organizationId)
+      .order('joined_at', { ascending: true }),
+    // Only the seat(s) covering today -- a member can have past-period seat rows too, but those
+    // aren't "current usage".
+    admin
+      .from('workify_seats')
+      .select('current_member_id, ai_answers_used, ai_answers_allowance')
+      .eq('organization_id', organizationId)
+      .lte('billing_period_start', today)
+      .gte('billing_period_end', today)
+      .not('current_member_id', 'is', null),
+  ]);
 
   if (orgError || !organization) {
     return jsonResponse({ error: 'organization_not_found' }, 404);
@@ -62,6 +76,23 @@ Deno.serve(async (req) => {
   if (membersError) {
     return jsonResponse({ error: 'members_query_failed', message: membersError.message }, 500);
   }
+  if (seatsError) {
+    return jsonResponse({ error: 'seats_query_failed', message: seatsError.message }, 500);
+  }
+
+  const usageByMemberId = new Map(
+    (seats ?? []).map((seat) => [
+      seat.current_member_id as string,
+      { used: seat.ai_answers_used as number, allowance: seat.ai_answers_allowance as number },
+    ])
+  );
+  const usage = (seats ?? []).reduce(
+    (total, seat) => ({
+      used: total.used + (seat.ai_answers_used as number),
+      allowance: total.allowance + (seat.ai_answers_allowance as number),
+    }),
+    { used: 0, allowance: 0 }
+  );
 
   // auth.users isn't exposed via PostgREST -- resolve each member's email via the Auth Admin
   // API, same as workify-web's OrgOverview.tsx does.
@@ -72,7 +103,7 @@ Deno.serve(async (req) => {
         const { data } = await admin.auth.admin.getUserById(member.user_id);
         email = data.user?.email ?? email;
       }
-      return { ...member, email };
+      return { ...member, email, seat_usage: usageByMemberId.get(member.id) ?? null };
     })
   );
 
@@ -80,5 +111,6 @@ Deno.serve(async (req) => {
     organization,
     role: callerMembership.role,
     members: membersWithEmail,
+    usage: (seats ?? []).length > 0 ? usage : null,
   });
 });

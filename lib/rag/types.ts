@@ -42,6 +42,8 @@ export type RagChatResponse = {
 export type RagChatErrorResponse = {
   error: string;
   message?: string;
+  used?: number;
+  allowance?: number;
 };
 
 // One turn as stored in rag_chat_sessions.nodes (jsonb array).

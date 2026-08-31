@@ -24,7 +24,7 @@ function Dot({ delay }: { delay: number }) {
 export function TypingIndicator() {
   return (
     <View className="flex-row justify-start px-4 py-1.5">
-      <View className={cn('bg-card border-border flex-row gap-1.5 rounded-2xl border px-4 py-3')}>
+      <View className={cn('bg-card border-border flex-row gap-1.5 rounded-lg border px-4 py-3')}>
         <Dot delay={0} />
         <Dot delay={150} />
         <Dot delay={300} />

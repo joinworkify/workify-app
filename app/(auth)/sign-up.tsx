@@ -55,7 +55,7 @@ export default function SignUpScreen() {
       <SafeAreaView edges={['top']} className="flex-1">
         <AuthHero />
       </SafeAreaView>
-      <SafeAreaView edges={['bottom']} className="bg-background rounded-t-3xl">
+      <SafeAreaView edges={['bottom']} className="bg-background rounded-t-xl">
         <View className="px-6 pb-8 pt-8">
           <Text variant="h3">Create your account</Text>
           <Text variant="muted" className="mt-1">
@@ -70,7 +70,7 @@ export default function SignUpScreen() {
               </Text>
               <Button
                 variant="outline"
-                className="h-12 rounded-xl"
+                className="h-12 rounded-lg"
                 onPress={() => router.replace('/(auth)/sign-in')}>
                 <Text className="font-semibold">Back to sign in</Text>
               </Button>
@@ -87,7 +87,7 @@ export default function SignUpScreen() {
                   autoComplete="email"
                   keyboardType="email-address"
                   placeholder="you@company.com"
-                  className="bg-muted h-12 rounded-xl border-0"
+                  className="bg-muted h-12 rounded-lg border-0"
                 />
               </View>
               <View className="gap-2">
@@ -101,7 +101,7 @@ export default function SignUpScreen() {
                     autoComplete="password-new"
                     secureTextEntry={!showPassword}
                     placeholder="At least 8 characters"
-                    className="bg-muted h-12 rounded-xl border-0 pr-11"
+                    className="bg-muted h-12 rounded-lg border-0 pr-11"
                   />
                   <Pressable
                     onPress={() => setShowPassword((value) => !value)}
@@ -124,7 +124,7 @@ export default function SignUpScreen() {
               <Button
                 onPress={handleSignUp}
                 disabled={isSubmitting || !email || !passwordMeetsRequirements(password)}
-                className="mt-2 h-12 rounded-xl">
+                className="mt-2 h-12 rounded-lg">
                 <Text className="text-primary-foreground font-semibold">
                   {isSubmitting ? 'Creating account…' : 'Sign up'}
                 </Text>

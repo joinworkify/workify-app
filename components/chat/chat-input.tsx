@@ -20,7 +20,7 @@ export function ChatInput({ value, onChangeText, onSend, disabled }: ChatInputPr
         value={value}
         onChangeText={onChangeText}
         placeholder="Ask about your manual..."
-        className="min-h-11 max-h-32 flex-1 rounded-full"
+        className="min-h-11 max-h-32 flex-1 rounded-xl"
         editable={!disabled}
       />
       <Pressable

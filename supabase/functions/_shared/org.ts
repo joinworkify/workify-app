@@ -15,11 +15,16 @@ const ALL_PERMISSIONS: OrgPermission[] = ['manage_members'];
 // findOrCreateAvailableSeat needs (aiAnswersAllowancePerSeat). Enterprise orgs aren't self-serve
 // (hand-configured), so they fall through to the "mirror an existing seat" branch below, same as
 // web.
-const SELF_SERVE_ALLOWANCE_PER_SEAT: Record<string, number> = {
+export const SELF_SERVE_ALLOWANCE_PER_SEAT: Record<string, number> = {
   individual: 600,
   team: 1600,
   professional: 4050,
 };
+
+// Mirrors workify-web/lib/pricing/tiers.ts's PRICING_TIERS.individual.baseLibraryCapacityPages --
+// bootstrap-organization needs this alongside the allowance above so a mobile-created org's page
+// capacity isn't silently zeroed out the same way its AI-answer allowance was (see that file).
+export const INDIVIDUAL_BASE_LIBRARY_CAPACITY_PAGES = 5000;
 
 export async function isOrgManager(
   admin: SupabaseClient,
@@ -266,4 +271,102 @@ export async function deactivateMember(admin: SupabaseClient, memberId: string):
     .eq('current_member_id', memberId);
 
   if (seatError) throw seatError;
+}
+
+// --- Row-5 AI-answer credit metering -----------------------------------------------------
+// Ported near-verbatim from workify-web/lib/org/metering.ts + organizations.ts's
+// isOrgAccessBlocked. This is the piece mobile's rag-chat function was missing entirely: it used
+// to only check "does a membership row exist" and then call ../syspare-rag-py directly, so every
+// mobile AI answer skipped the seat allowance check AND never incremented ai_answers_used --
+// invisible to the web dashboard's usage numbers and unenforced. Keeping the exact same table
+// shapes/RPCs as web means a seat's usage is one shared counter regardless of which app burned it.
+
+const BLOCKED_ORG_STATUSES: readonly string[] = ['canceled', 'past_due', 'pending'];
+
+export async function isOrgAccessBlocked(
+  admin: SupabaseClient,
+  organizationId: string
+): Promise<boolean> {
+  const { data } = await admin
+    .from('workify_organizations')
+    .select('status')
+    .eq('id', organizationId)
+    .maybeSingle();
+
+  return !!data?.status && BLOCKED_ORG_STATUSES.includes(data.status);
+}
+
+export type QuotaCheck =
+  | { allowed: true; metered: true; organizationId: string; seatId: string }
+  | { allowed: true; metered: false; organizationId: null; seatId: null }
+  | { allowed: false; reason: 'no_organization' }
+  | { allowed: false; reason: 'org_inactive'; organizationId: string }
+  | {
+      allowed: false;
+      reason: 'quota_exceeded';
+      organizationId: string;
+      seatId: string;
+      used: number;
+      allowance: number;
+    };
+
+// Call BEFORE forwarding a chat/query request to the RAG backend.
+export async function checkAiAnswerQuota(admin: SupabaseClient, userId: string): Promise<QuotaCheck> {
+  const { data: membership } = await admin
+    .from('workify_organization_members')
+    .select('id, organization_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!membership) {
+    return { allowed: false, reason: 'no_organization' };
+  }
+
+  if (await isOrgAccessBlocked(admin, membership.organization_id)) {
+    return { allowed: false, reason: 'org_inactive', organizationId: membership.organization_id };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: seat } = await admin
+    .from('workify_seats')
+    .select('id, ai_answers_used, ai_answers_allowance')
+    .eq('current_member_id', membership.id)
+    .lte('billing_period_start', today)
+    .gte('billing_period_end', today)
+    .order('billing_period_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!seat) {
+    console.warn(
+      `[metering] no active-period seat for member ${membership.id} (org ${membership.organization_id}) -- failing open (unmetered)`
+    );
+    return { allowed: true, metered: false, organizationId: null, seatId: null };
+  }
+
+  if (seat.ai_answers_used >= seat.ai_answers_allowance) {
+    return {
+      allowed: false,
+      reason: 'quota_exceeded',
+      organizationId: membership.organization_id,
+      seatId: seat.id,
+      used: seat.ai_answers_used,
+      allowance: seat.ai_answers_allowance,
+    };
+  }
+
+  return { allowed: true, metered: true, organizationId: membership.organization_id, seatId: seat.id };
+}
+
+// Call AFTER a successful AI answer to atomically increment usage (same workify_increment_seat_usage
+// RPC web uses, so concurrent requests from either app can't undercount). Deliberately does not
+// send the 80%/100% threshold email web's recordAiAnswerUsage sends (lib/org/notifications.ts is
+// Next.js/email-client specific) -- and deliberately does NOT flip the notified_* flags either, so
+// whichever app's request actually crosses a threshold still lets web send that email later rather
+// than silently marking it "already notified."
+export async function recordAiAnswerUsage(admin: SupabaseClient, seatId: string): Promise<void> {
+  const { error } = await admin.rpc('workify_increment_seat_usage', { p_seat_id: seatId }).single();
+  if (error) {
+    console.error('[metering] failed to increment seat usage', error);
+  }
 }
