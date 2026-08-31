@@ -24,9 +24,10 @@ import {
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import type { ChatSessionSummary } from '@/hooks/use-chat-sessions';
+import { useNow } from '@/hooks/use-now';
 
-function formatRelativeTime(iso: string) {
-  const diffMs = Date.now() - new Date(iso).getTime();
+function formatRelativeTime(iso: string, now: number) {
+  const diffMs = now - new Date(iso).getTime();
   const minutes = Math.round(diffMs / 60000);
   if (minutes < 1) return 'just now';
   if (minutes < 60) return `${minutes}m ago`;
@@ -52,6 +53,7 @@ export function SessionListItem({
   session: ChatSessionSummary;
   actions?: SessionAction[];
 }) {
+  const now = useNow();
   const [menuOpen, setMenuOpen] = useState(false);
   // Deliberately a sibling of the menu Dialog below, not nested inside it -- an AlertDialog
   // rendered inside DialogContent gets unmounted the instant the parent Dialog closes (which we
@@ -72,7 +74,7 @@ export function SessionListItem({
             {session.title}
           </Text>
           <Text variant="muted" className="text-xs">
-            {session.message_count} messages · {formatRelativeTime(session.updated_at)}
+            {session.message_count} messages · {formatRelativeTime(session.updated_at, now)}
           </Text>
         </View>
       </Pressable>

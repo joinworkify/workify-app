@@ -32,7 +32,7 @@ export function ManualPicker({ manuals, selectedManualId, onSelect }: ManualPick
       <DialogTrigger asChild>
         <Pressable
           accessibilityRole="button"
-          className="bg-muted active:bg-muted/70 flex-row items-center gap-1 rounded-full px-3 py-1.5">
+          className="bg-muted active:bg-muted/70 flex-row items-center gap-1 rounded-lg px-3 py-1.5">
           <Text variant="small" className="max-w-32 font-medium" numberOfLines={1}>
             {label}
           </Text>

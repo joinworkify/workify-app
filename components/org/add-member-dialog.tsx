@@ -54,7 +54,7 @@ export function AddMemberDialog({ isOwner, onAdd }: AddMemberDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-full">
+        <Button>
           <Text className="text-primary-foreground">Add member</Text>
         </Button>
       </DialogTrigger>
@@ -73,7 +73,7 @@ export function AddMemberDialog({ isOwner, onAdd }: AddMemberDialogProps) {
               autoComplete="email"
               keyboardType="email-address"
               placeholder="member@company.com"
-              className="bg-muted h-12 rounded-xl border-0"
+              className="bg-muted h-12 rounded-lg border-0"
             />
           </View>
           {isOwner ? (

@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatInput } from '@/components/chat/chat-input';
@@ -10,6 +10,7 @@ import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { Text } from '@/components/ui/text';
 import { useChatSession } from '@/hooks/use-chat-sessions';
 import { useManuals } from '@/hooks/use-manuals';
+import { dayKey, formatDaySeparator } from '@/lib/chat/format-date';
 import { RagChatError, sendRagChatMessage } from '@/lib/rag/client';
 import type { ChatNode } from '@/lib/rag/types';
 
@@ -31,35 +32,42 @@ export default function ChatConversationScreen() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // First message of each new calendar day (device-local) gets a "Today"/"Yesterday"/date
+  // separator rendered above its bubble -- keyed by node id since the list itself renders
+  // reversed+inverted for the chat scroll trick.
+  const daySeparators = useMemo(() => {
+    const separators = new Map<string, string>();
+    let lastKey: string | null = null;
+    for (const node of session?.nodes ?? []) {
+      const key = dayKey(node.createdAt);
+      if (key !== lastKey) {
+        separators.set(node.id, formatDaySeparator(node.createdAt));
+        lastKey = key;
+      }
+    }
+    return separators;
+  }, [session?.nodes]);
+
   useEffect(() => {
     pingRagHealth();
   }, []);
 
-  async function handleSend() {
-    const question = draft.trim();
-    if (!question || isSending || !session) return;
-
-    setDraft('');
+  // Shared by a fresh send and a retry -- the only difference is whether the caller still needs
+  // to append the user's node first (a retry's user node is already persisted from the failed
+  // attempt, so re-sending it would duplicate the bubble).
+  async function submitQuestion(question: string, historyNodes: ChatNode[]) {
+    if (!session) return;
     setError(null);
     setIsSending(true);
 
-    const lastNode = session.nodes[session.nodes.length - 1];
-    const userNode: ChatNode = {
-      id: makeId(),
-      parentId: lastNode?.id ?? null,
-      role: 'user',
-      content: question,
-      createdAt: new Date().toISOString(),
-    };
+    const lastNode = historyNodes[historyNodes.length - 1];
 
     try {
-      await appendAndPersist(userNode);
-
       // sys-rag/Gemini's history wire format uses role 'user' | 'model', not this app's stored
       // 'user' | 'assistant' node role (see ChatNodeRole) -- translate on the way out, and read
       // text from `result.answer` first since that's where an assistant turn's text lives once
       // written in the shared (with workify-web) node shape.
-      const history = [...session.nodes, userNode].map((n) => ({
+      const history = historyNodes.map((n) => ({
         role: n.role === 'assistant' ? ('model' as const) : ('user' as const),
         content: n.result?.answer ?? n.content ?? '',
       }));
@@ -73,7 +81,7 @@ export default function ChatConversationScreen() {
 
       const modelNode: ChatNode = {
         id: makeId(),
-        parentId: userNode.id,
+        parentId: lastNode?.id ?? null,
         role: 'assistant',
         question,
         // Stored as workify-web stores it -- raw answer (citation markers like "[Image 1]" and
@@ -86,12 +94,57 @@ export default function ChatConversationScreen() {
     } catch (err) {
       if (err instanceof RagChatError && err.code === 'no_organization') {
         setError("Your account isn't set up yet. Try signing out and back in.");
+      } else if (
+        err instanceof RagChatError &&
+        (err.code === 'ai_answer_limit_reached' || err.code === 'organization_inactive')
+      ) {
+        setError(err.message);
       } else {
         setError('Something went wrong sending that message.');
       }
     } finally {
       setIsSending(false);
     }
+  }
+
+  async function handleSend() {
+    const question = draft.trim();
+    if (!question || isSending || !session) return;
+
+    setDraft('');
+    setError(null);
+
+    const lastNode = session.nodes[session.nodes.length - 1];
+    const userNode: ChatNode = {
+      id: makeId(),
+      parentId: lastNode?.id ?? null,
+      role: 'user',
+      content: question,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      await appendAndPersist(userNode);
+    } catch {
+      // Never made it into the session -- give the draft back rather than silently losing it.
+      setDraft(question);
+      setError('Failed to send your message. Check your connection and try again.');
+      return;
+    }
+
+    await submitQuestion(question, [...session.nodes, userNode]);
+  }
+
+  // Only offered when the most recent node is a user message with no model reply after it --
+  // i.e. the question is already saved, just the RAG call (or the model's response) failed.
+  const canRetry =
+    !!error && !!session && session.nodes[session.nodes.length - 1]?.role === 'user';
+
+  function handleRetry() {
+    if (!session || isSending) return;
+    const lastNode = session.nodes[session.nodes.length - 1];
+    if (!lastNode || lastNode.role !== 'user') return;
+    submitQuestion(lastNode.content ?? '', session.nodes);
   }
 
   if (!session) return null;
@@ -121,15 +174,28 @@ export default function ChatConversationScreen() {
           data={[...session.nodes].reverse()}
           inverted
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <MessageBubble node={item} />}
+          renderItem={({ item }) => (
+            <MessageBubble node={item} dateLabel={daySeparators.get(item.id) ?? null} />
+          )}
           contentContainerClassName="py-2"
           ListHeaderComponent={isSending ? <TypingIndicator /> : null}
         />
         {error ? (
-          <View className="px-4 pb-1">
-            <Text className="text-destructive" variant="small">
+          <View className="flex-row items-center justify-between gap-3 px-4 pb-1">
+            <Text className="text-destructive flex-1" variant="small">
               {error}
             </Text>
+            {canRetry ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSending}
+                onPress={handleRetry}
+                hitSlop={8}>
+                <Text className="text-primary font-medium" variant="small">
+                  Retry
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
         <ChatInput value={draft} onChangeText={setDraft} onSend={handleSend} disabled={isSending} />

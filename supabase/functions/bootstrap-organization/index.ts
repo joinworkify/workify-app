@@ -4,11 +4,15 @@
 // change that. It's called explicitly from app/(auth)/sign-up.tsx, never from a DB trigger, so
 // web signups are untouched.
 //
-// Values mirror prod's real "individual" tier rows (seat_limit 1, seats_purchased 1,
-// ai_answers_allowance 0, no library capacity) -- same as any other individual-tier org, not a
-// mobile-specific special case.
+// Values mirror prod's real "individual" tier rows (seat_limit 1, seats_purchased 1, per
+// workify-web/lib/pricing/tiers.ts's PRICING_TIERS.individual) -- same as any other
+// individual-tier org, not a mobile-specific special case. This previously hardcoded
+// ai_answers_allowance to 0, which meant every mobile-bootstrapped org started with zero AI
+// answers -- invisible as long as rag-chat didn't enforce the allowance at all, but a hard block
+// on every single mobile chat now that it does (see rag-chat/index.ts).
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
+import { INDIVIDUAL_BASE_LIBRARY_CAPACITY_PAGES, SELF_SERVE_ALLOWANCE_PER_SEAT } from '../_shared/org.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -57,8 +61,8 @@ Deno.serve(async (req) => {
     p_seat_limit: 1,
     p_seats_purchased: 1,
     p_owner_user_id: user.id,
-    p_ai_answers_allowance: 0,
-    p_base_library_capacity_pages: 0,
+    p_ai_answers_allowance: SELF_SERVE_ALLOWANCE_PER_SEAT.individual,
+    p_base_library_capacity_pages: INDIVIDUAL_BASE_LIBRARY_CAPACITY_PAGES,
     p_additional_capacity_per_seat_pages: 0,
     p_status: 'active',
   });
