@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { MessageCircle, User } from 'lucide-react-native';
+import { MessageCircle, User, Users } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 import { HapticTab } from '@/components/haptic-tab';
@@ -23,6 +23,13 @@ export default function AppTabsLayout() {
         options={{
           title: 'Chats',
           tabBarIcon: ({ color, size }) => <Icon as={MessageCircle} color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="team"
+        options={{
+          title: 'Team',
+          tabBarIcon: ({ color, size }) => <Icon as={Users} color={color} size={size} />,
         }}
       />
       <Tabs.Screen

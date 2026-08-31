@@ -1,10 +1,13 @@
 import { Link, router } from 'expo-router';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthHero } from '@/components/auth/auth-hero';
+import { PasswordRequirements, passwordMeetsRequirements } from '@/components/auth/password-requirements';
 import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Text } from '@/components/ui/text';
@@ -15,6 +18,7 @@ export default function SignUpScreen() {
   const { signUpWithPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
@@ -88,16 +92,29 @@ export default function SignUpScreen() {
               </View>
               <View className="gap-2">
                 <Label nativeID="password">Password</Label>
-                <Input
-                  aria-labelledby="password"
-                  value={password}
-                  onChangeText={setPassword}
-                  autoCapitalize="none"
-                  autoComplete="password-new"
-                  secureTextEntry
-                  placeholder="At least 8 characters"
-                  className="bg-muted h-12 rounded-xl border-0"
-                />
+                <View className="justify-center">
+                  <Input
+                    aria-labelledby="password"
+                    value={password}
+                    onChangeText={setPassword}
+                    autoCapitalize="none"
+                    autoComplete="password-new"
+                    secureTextEntry={!showPassword}
+                    placeholder="At least 8 characters"
+                    className="bg-muted h-12 rounded-xl border-0 pr-11"
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword((value) => !value)}
+                    hitSlop={8}
+                    className="absolute inset-y-0 right-3 justify-center"
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+                    <Icon as={showPassword ? EyeOff : Eye} size={20} className="text-muted-foreground" />
+                  </Pressable>
+                </View>
+                {password.length > 0 ? (
+                  <PasswordRequirements password={password} />
+                ) : null}
               </View>
               {error ? (
                 <Text className="text-destructive" variant="small">
@@ -106,7 +123,7 @@ export default function SignUpScreen() {
               ) : null}
               <Button
                 onPress={handleSignUp}
-                disabled={isSubmitting || !email || password.length < 8}
+                disabled={isSubmitting || !email || !passwordMeetsRequirements(password)}
                 className="mt-2 h-12 rounded-xl">
                 <Text className="text-primary-foreground font-semibold">
                   {isSubmitting ? 'Creating account…' : 'Sign up'}

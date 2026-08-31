@@ -16,43 +16,104 @@ export type ChatSession = ChatSessionSummary & {
   manual_id: string | null;
 };
 
-export function useChatSessions() {
+// Shared list-loading logic for both the active (Chats tab) and archived (Profile ->
+// Archived Chats) session lists -- same loading/refresh state shape, only the is_archived
+// filter differs.
+function useSessionsList(isArchived: boolean) {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  // Split from isRefreshing on purpose: isLoading gates the initial full-screen skeleton (which
+  // unmounts the FlatList/RefreshControl entirely), so it must never flip true again for a pull-
+  // to-refresh -- that unmount/remount cycle is what read as the list "reloading twice" per pull.
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const fetchSessions = useCallback(async () => {
     if (!user) {
       setSessions([]);
-      setIsLoading(false);
       return;
     }
-    setIsLoading(true);
     const { data, error } = await supabase
       .from('rag_chat_sessions')
       .select('id, title, message_count, updated_at')
+      .eq('is_archived', isArchived)
       .order('updated_at', { ascending: false });
     if (!error && data) setSessions(data as ChatSessionSummary[]);
-    setIsLoading(false);
-  }, [user]);
+  }, [user, isArchived]);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    setIsLoading(true);
+    fetchSessions().finally(() => setIsLoading(false));
+  }, [fetchSessions]);
 
-  const createSession = useCallback(async () => {
-    if (!user) throw new Error('Not signed in');
-    const { data, error } = await supabase
-      .from('rag_chat_sessions')
-      .insert({ user_id: user.id, email: user.email })
-      .select('id')
-      .single();
-    if (error || !data) throw error ?? new Error('Failed to create session');
-    await refresh();
-    return data.id as string;
-  }, [user, refresh]);
+  const refresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await fetchSessions();
+    setIsRefreshing(false);
+  }, [fetchSessions]);
 
-  return { sessions, isLoading, refresh, createSession };
+  return { sessions, isLoading, isRefreshing, refresh, fetchSessions };
+}
+
+export function useChatSessions() {
+  const { user } = useAuth();
+  const { sessions, isLoading, isRefreshing, refresh, fetchSessions } = useSessionsList(false);
+
+  const createSession = useCallback(
+    async (manualId?: string | null) => {
+      if (!user) throw new Error('Not signed in');
+      const { data, error } = await supabase
+        .from('rag_chat_sessions')
+        .insert({ user_id: user.id, email: user.email, manual_id: manualId ?? null })
+        .select('id')
+        .single();
+      if (error || !data) throw error ?? new Error('Failed to create session');
+      await fetchSessions();
+      return data.id as string;
+    },
+    [user, fetchSessions]
+  );
+
+  const archiveSession = useCallback(
+    async (sessionId: string) => {
+      const { error } = await supabase
+        .from('rag_chat_sessions')
+        .update({ is_archived: true })
+        .eq('id', sessionId);
+      if (error) throw error;
+      await fetchSessions();
+    },
+    [fetchSessions]
+  );
+
+  return { sessions, isLoading, isRefreshing, refresh, createSession, archiveSession };
+}
+
+export function useArchivedSessions() {
+  const { sessions, isLoading, isRefreshing, refresh, fetchSessions } = useSessionsList(true);
+
+  const unarchiveSession = useCallback(
+    async (sessionId: string) => {
+      const { error } = await supabase
+        .from('rag_chat_sessions')
+        .update({ is_archived: false })
+        .eq('id', sessionId);
+      if (error) throw error;
+      await fetchSessions();
+    },
+    [fetchSessions]
+  );
+
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      const { error } = await supabase.from('rag_chat_sessions').delete().eq('id', sessionId);
+      if (error) throw error;
+      await fetchSessions();
+    },
+    [fetchSessions]
+  );
+
+  return { sessions, isLoading, isRefreshing, refresh, unarchiveSession, deleteSession };
 }
 
 export function useChatSession(sessionId: string | undefined) {
@@ -109,5 +170,19 @@ export function useChatSession(sessionId: string | undefined) {
     [sessionId, applySession]
   );
 
-  return { session, isLoading, refresh, appendAndPersist };
+  const updateManualId = useCallback(
+    async (manualId: string | null) => {
+      const current = sessionRef.current;
+      if (!sessionId || !current) return;
+      const { error } = await supabase
+        .from('rag_chat_sessions')
+        .update({ manual_id: manualId })
+        .eq('id', sessionId);
+      if (error) throw error;
+      applySession({ ...current, manual_id: manualId });
+    },
+    [sessionId, applySession]
+  );
+
+  return { session, isLoading, refresh, appendAndPersist, updateManualId };
 }
