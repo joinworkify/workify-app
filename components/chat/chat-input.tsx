@@ -15,12 +15,12 @@ type ChatInputProps = {
 export function ChatInput({ value, onChangeText, onSend, disabled }: ChatInputProps) {
   const canSend = value.trim().length > 0 && !disabled;
   return (
-    <View className="border-border bg-background flex-row items-end gap-2 border-t px-3 py-2">
+    <View className="border-border bg-background flex-row items-center gap-2 border-t px-3 py-2">
       <Textarea
         value={value}
         onChangeText={onChangeText}
         placeholder="Ask about your manual..."
-        className="max-h-32 flex-1 rounded-full"
+        className="min-h-11 max-h-32 flex-1 rounded-full"
         editable={!disabled}
       />
       <Pressable

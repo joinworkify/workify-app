@@ -61,7 +61,9 @@ export const NAV_THEME: Record<'light' | 'dark', Theme> = {
     colors: {
       background: THEME.light.background,
       border: THEME.light.border,
-      card: THEME.light.card,
+      // Matches every screen's own `bg-background` surface (not `--card`) so the tab bar
+      // doesn't read as a visibly different shade where it meets a screen's rounded corner.
+      card: THEME.light.background,
       notification: THEME.light.destructive,
       primary: THEME.light.primary,
       text: THEME.light.foreground,
@@ -72,7 +74,7 @@ export const NAV_THEME: Record<'light' | 'dark', Theme> = {
     colors: {
       background: THEME.dark.background,
       border: THEME.dark.border,
-      card: THEME.dark.card,
+      card: THEME.dark.background,
       notification: THEME.dark.destructive,
       primary: THEME.dark.primary,
       text: THEME.dark.foreground,

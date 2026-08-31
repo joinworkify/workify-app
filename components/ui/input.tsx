@@ -1,7 +1,14 @@
+import { THEME } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import { useColorScheme } from 'nativewind';
 import { Platform, TextInput } from 'react-native';
 
-function Input({ className, ...props }: React.ComponentProps<typeof TextInput> & React.RefAttributes<TextInput>) {
+function Input({
+  className,
+  placeholderTextColor,
+  ...props
+}: React.ComponentProps<typeof TextInput> & React.RefAttributes<TextInput>) {
+  const { colorScheme } = useColorScheme();
   return (
     <TextInput
       className={cn(
@@ -17,10 +24,13 @@ function Input({ className, ...props }: React.ComponentProps<typeof TextInput> &
             'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
             'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive'
           ),
-          native: 'placeholder:text-muted-foreground/50',
         }),
         className
       )}
+      // NativeWind's TextInput interop has no placeholder-color mapping (only `style`/`textAlign`
+      // are wired up), so the `placeholder:` class variant above is a no-op on native and RN
+      // falls back to its own low-contrast default -- set the real prop instead.
+      placeholderTextColor={placeholderTextColor ?? THEME[colorScheme ?? 'light'].mutedForeground}
       {...props}
     />
   );

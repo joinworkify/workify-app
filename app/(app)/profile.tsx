@@ -1,4 +1,5 @@
-import { LogOut } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Archive, LogOut } from 'lucide-react-native';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -30,7 +31,14 @@ export default function ProfileScreen() {
           <Text variant="large">{user?.email}</Text>
           <Text variant="muted">Signed in</Text>
         </View>
-        <Button variant="outline" onPress={signOut} className="mt-4 w-full">
+        <Button
+          variant="outline"
+          onPress={() => router.push('/archived-chats')}
+          className="mt-4 w-full">
+          <Icon as={Archive} size={16} />
+          <Text>Archived chats</Text>
+        </Button>
+        <Button variant="outline" onPress={signOut} className="w-full">
           <Icon as={LogOut} size={16} />
           <Text>Sign out</Text>
         </Button>

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { Archive, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +11,8 @@ import { Text } from '@/components/ui/text';
 import { useChatSessions } from '@/hooks/use-chat-sessions';
 
 export default function ChatsIndexScreen() {
-  const { sessions, isLoading, refresh, createSession } = useChatSessions();
+  const { sessions, isLoading, isRefreshing, refresh, createSession, archiveSession } =
+    useChatSessions();
   const [isCreating, setIsCreating] = useState(false);
 
   async function handleNewChat() {
@@ -44,8 +45,19 @@ export default function ChatsIndexScreen() {
         <FlatList
           data={sessions}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <SessionListItem session={item} />}
-          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} />}
+          renderItem={({ item }) => (
+            <SessionListItem
+              session={item}
+              actions={[
+                {
+                  label: 'Archive',
+                  icon: Archive,
+                  onPress: () => archiveSession(item.id),
+                },
+              ]}
+            />
+          )}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         />
       )}
       <Pressable
