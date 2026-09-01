@@ -115,6 +115,7 @@ export default function ChatConversationScreen() {
       />
       <SafeAreaView edges={['bottom']} className="bg-background flex-1">
         <FlatList
+          className="flex-1"
           data={[...session.nodes].reverse()}
           inverted
           keyExtractor={(item) => item.id}

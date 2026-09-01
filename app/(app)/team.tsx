@@ -50,6 +50,7 @@ export default function TeamScreen() {
   return (
     <SafeAreaView className="bg-background flex-1">
       <FlatList
+        className="flex-1"
         data={members}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} />}

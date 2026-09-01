@@ -43,6 +43,7 @@ export default function ChatsIndexScreen() {
         </View>
       ) : (
         <FlatList
+          className="flex-1"
           data={sessions}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (

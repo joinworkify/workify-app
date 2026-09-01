@@ -30,6 +30,7 @@ export default function ArchivedChatsScreen() {
           </View>
         ) : (
           <FlatList
+            className="flex-1"
             data={sessions}
             keyExtractor={(item) => item.id}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
