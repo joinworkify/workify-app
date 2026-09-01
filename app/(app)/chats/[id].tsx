@@ -43,8 +43,10 @@ export default function ChatConversationScreen() {
     setError(null);
     setIsSending(true);
 
+    const lastNode = session.nodes[session.nodes.length - 1];
     const userNode: ChatNode = {
       id: makeId(),
+      parentId: lastNode?.id ?? null,
       role: 'user',
       content: question,
       createdAt: new Date().toISOString(),
@@ -53,9 +55,13 @@ export default function ChatConversationScreen() {
     try {
       await appendAndPersist(userNode);
 
+      // sys-rag/Gemini's history wire format uses role 'user' | 'model', not this app's stored
+      // 'user' | 'assistant' node role (see ChatNodeRole) -- translate on the way out, and read
+      // text from `result.answer` first since that's where an assistant turn's text lives once
+      // written in the shared (with workify-web) node shape.
       const history = [...session.nodes, userNode].map((n) => ({
-        role: n.role,
-        content: n.content,
+        role: n.role === 'assistant' ? ('model' as const) : ('user' as const),
+        content: n.result?.answer ?? n.content ?? '',
       }));
 
       const response = await sendRagChatMessage({
@@ -67,17 +73,13 @@ export default function ChatConversationScreen() {
 
       const modelNode: ChatNode = {
         id: makeId(),
-        role: 'model',
-        // sys-rag cites retrieved figures/chunks inline as "[Image 1]", "[Manual Clip 2]", or
-        // combinations of both -- we show every returned image as a gallery below the bubble
-        // rather than matching citations to specific images (unlike workify-web's
-        // citation-filtered/linked version), so strip the raw markers instead of leaving
-        // dangling bracket text with no link behind it.
-        content: response.answer
-          .replace(/\[[^[\]]*\b(?:image|manual\s*clip)[^[\]]*\]/gi, '')
-          .replace(/[ \t]{2,}/g, ' ')
-          .trim(),
-        images: response.images,
+        parentId: userNode.id,
+        role: 'assistant',
+        question,
+        // Stored as workify-web stores it -- raw answer (citation markers like "[Image 1]" and
+        // all), so a session either app writes renders correctly in both. Marker-stripping for
+        // this app's simpler flat image gallery happens at render time (message-bubble.tsx).
+        result: response,
         createdAt: new Date().toISOString(),
       };
       await appendAndPersist(modelNode);

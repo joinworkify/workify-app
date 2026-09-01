@@ -25,7 +25,9 @@ function RootNavigator() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Protected guard={!!session}>
-        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+        {/* title: '' -- without it, the back button on screens pushed from here (e.g.
+            archived-chats) falls back to this route's segment name, "(app)", as its label. */}
+        <Stack.Screen name="(app)" options={{ headerShown: false, title: '' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="archived-chats" options={{ title: 'Archived Chats' }} />
       </Stack.Protected>
