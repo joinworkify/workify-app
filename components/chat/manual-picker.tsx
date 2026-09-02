@@ -32,7 +32,7 @@ export function ManualPicker({ manuals, selectedManualId, onSelect }: ManualPick
       <DialogTrigger asChild>
         <Pressable
           accessibilityRole="button"
-          className="bg-muted active:bg-muted/70 flex-row items-center gap-1 rounded-full px-3 py-1.5">
+          className="bg-muted active:bg-muted/70 flex-row items-center gap-1 rounded-lg px-3 py-1.5">
           <Text variant="small" className="max-w-32 font-medium" numberOfLines={1}>
             {label}
           </Text>
@@ -53,10 +53,12 @@ export function ManualPicker({ manuals, selectedManualId, onSelect }: ManualPick
                     accessibilityRole="button"
                     onPress={() => onSelect(manual.manual_id)}
                     className={cn(
-                      'flex-row items-center justify-between rounded-lg px-3 py-3',
+                      'flex-row items-center justify-between gap-2 rounded-lg px-3 py-3',
                       isSelected ? 'bg-primary/10' : 'active:bg-muted'
                     )}>
-                    <Text className={cn(isSelected && 'text-primary font-medium')}>
+                    <Text
+                      className={cn('flex-1', isSelected && 'text-primary font-medium')}
+                      numberOfLines={1}>
                       {manual.display_name}
                     </Text>
                     {isSelected ? <Icon as={Check} size={18} className="text-primary" /> : null}

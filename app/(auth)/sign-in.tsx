@@ -39,7 +39,7 @@ export default function SignInScreen() {
       <SafeAreaView edges={['top']} className="flex-1">
         <AuthHero />
       </SafeAreaView>
-      <SafeAreaView edges={['bottom']} className="bg-background rounded-t-3xl">
+      <SafeAreaView edges={['bottom']} className="bg-background rounded-t-xl">
         <View className="px-6 pb-8 pt-8">
           <Text variant="h3">Welcome back</Text>
           <Text variant="muted" className="mt-1">
@@ -57,7 +57,7 @@ export default function SignInScreen() {
                 autoComplete="email"
                 keyboardType="email-address"
                 placeholder="you@company.com"
-                className="bg-muted h-12 rounded-xl border-0"
+                className="bg-muted h-12 rounded-lg border-0"
               />
             </View>
             <View className="gap-2">
@@ -71,7 +71,7 @@ export default function SignInScreen() {
                   autoComplete="password"
                   secureTextEntry={!showPassword}
                   placeholder="••••••••"
-                  className="bg-muted h-12 rounded-xl border-0 pr-11"
+                  className="bg-muted h-12 rounded-lg border-0 pr-11"
                 />
                 <Pressable
                   onPress={() => setShowPassword((value) => !value)}
@@ -91,7 +91,7 @@ export default function SignInScreen() {
             <Button
               onPress={handleSignIn}
               disabled={isSubmitting || !email || !password}
-              className="mt-2 h-12 rounded-xl">
+              className="mt-2 h-12 rounded-lg">
               <Text className="text-primary-foreground font-semibold">
                 {isSubmitting ? 'Signing in…' : 'Log in'}
               </Text>

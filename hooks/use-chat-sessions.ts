@@ -153,7 +153,7 @@ export function useChatSession(sessionId: string | undefined) {
       const nodes = [...current.nodes, ...newNodes];
       const title =
         current.message_count === 0 && newNodes[0]
-          ? newNodes[0].content.slice(0, 60)
+          ? (newNodes[0].content ?? '').slice(0, 60)
           : current.title;
       const { error } = await supabase
         .from('rag_chat_sessions')
@@ -161,6 +161,10 @@ export function useChatSession(sessionId: string | undefined) {
           nodes,
           message_count: nodes.length,
           title,
+          // workify-web resumes a session from this node on load (its branching UI can leave
+          // active_node_id pointing at an earlier turn) -- this app is always linear, so it's
+          // always the newest node.
+          active_node_id: nodes[nodes.length - 1]?.id ?? null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', sessionId);

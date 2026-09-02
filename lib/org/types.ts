@@ -13,6 +13,11 @@ export type Organization = {
   owner_id: string;
 };
 
+export type SeatUsage = {
+  used: number;
+  allowance: number;
+};
+
 export type OrgMember = {
   id: string;
   user_id: string | null;
@@ -22,12 +27,14 @@ export type OrgMember = {
   joined_at: string | null;
   permissions: Partial<Record<OrgPermission, boolean>> | null;
   email: string | null;
+  seat_usage: SeatUsage | null;
 };
 
 export type OrgOverview = {
   organization: Organization;
   role: MemberRole;
   members: OrgMember[];
+  usage: SeatUsage | null;
 };
 
 export type OrgErrorResponse = {

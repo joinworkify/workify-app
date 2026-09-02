@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { UsageBar } from '@/components/org/usage-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,6 +68,9 @@ export function MemberRow({
             </Badge>
           ) : null}
         </View>
+        {member.seat_usage ? (
+          <UsageBar usage={member.seat_usage} label="Usage this period" />
+        ) : null}
       </View>
 
       {canAct ? (

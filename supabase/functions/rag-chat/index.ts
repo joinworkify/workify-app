@@ -3,16 +3,45 @@
 // organization_id it's sent, so this must run server-side, not from the client -- this function
 // resolves the caller's real organization_id and overwrites anything the client sent.
 //
-// v1 deliberately skips workify-web's seat/billing-allowance check (workify_seats lookup +
-// recordAiAnswerUsage) -- the only gate here is "does this user have an org at all". If not,
-// the client should call bootstrap-organization and retry.
+// Now shares web's exact row-5 credit gate (_shared/org.ts's checkAiAnswerQuota/
+// recordAiAnswerUsage, same workify_seats table + workify_increment_seat_usage RPC) instead of
+// only checking "does this user have an org at all" -- previously an app user could burn
+// unlimited AI answers without ever touching the seat allowance web enforces, and none of that
+// usage showed up in the web dashboard's numbers.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
+import { checkAiAnswerQuota, recordAiAnswerUsage } from '../_shared/org.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const RAG_API_URL = Deno.env.get('RAG_API_URL') ?? 'https://syspare-rag-py.onrender.com';
+
+// Mirrors workify-web/lib/rag/usage.ts -- same shape sys-rag's /api/chat returns in `usage`.
+function isSuccessfulAnswer(payload: unknown): payload is { answer: string; usage?: unknown } {
+  if (!payload || typeof payload !== 'object') return false;
+  const answer = (payload as Record<string, unknown>).answer;
+  return typeof answer === 'string' && answer.trim().length > 0;
+}
+
+function usageLogFields(usage: unknown): Record<string, unknown> {
+  if (!usage || typeof usage !== 'object') return {};
+  const raw = usage as Record<string, unknown>;
+  if (typeof raw.model_name !== 'string') return {};
+  const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return {
+    usage_metadata: raw,
+    provider_model: raw.model_name,
+    prompt_tokens: num(raw.prompt_tokens),
+    output_tokens: num(raw.output_tokens),
+    thinking_tokens: num(raw.thinking_tokens),
+    total_tokens: num(raw.total_tokens),
+    generation_calls: num(raw.generation_calls),
+    retrieval_used: raw.retrieval_used === true,
+    retrieval_expanded: raw.retrieval_expanded === true,
+    estimated_cost_usd: num(raw.estimated_cost_usd),
+  };
+}
 
 type ClientChatRequest = {
   session_id?: string | null;
@@ -45,19 +74,32 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  const { data: membership } = await admin
-    .from('workify_organization_members')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!membership) {
+  const quota = await checkAiAnswerQuota(admin, user.id);
+  if (!quota.allowed) {
+    if (quota.reason === 'no_organization') {
+      return jsonResponse(
+        { error: 'no_organization', message: 'Choose a plan or accept an invite to get started.' },
+        402
+      );
+    }
+    if (quota.reason === 'org_inactive') {
+      return jsonResponse(
+        { error: 'organization_inactive', message: "This organization's subscription is not active." },
+        402
+      );
+    }
     return jsonResponse(
-      { error: 'no_organization', message: 'Choose a plan or accept an invite to get started.' },
+      {
+        error: 'ai_answer_limit_reached',
+        message: "You've used all of your AI answers for this billing period.",
+        used: quota.used,
+        allowance: quota.allowance,
+      },
       402
     );
   }
-  const organizationId = membership.organization_id as string;
+  const organizationId = quota.metered ? quota.organizationId : null;
+  const seatId = quota.metered ? quota.seatId : null;
 
   let clientBody: ClientChatRequest;
   try {
@@ -98,13 +140,14 @@ Deno.serve(async (req) => {
   if (upstream.ok) {
     try {
       const payload = JSON.parse(text);
-      if (typeof payload.answer === 'string') {
-        // Fire-and-forget: a logging failure must never cost the user their answer.
+      if (isSuccessfulAnswer(payload)) {
+        // Fire-and-forget: neither the credit-usage log nor the seat increment may cost the user
+        // their answer if they fail. credits_consumed mirrors web's rule: 1 per answer for a real
+        // metered seat, 0 for the fail-open/unmetered case (see _shared/org.ts's checkAiAnswerQuota).
         // @ts-ignore EdgeRuntime is injected by the Supabase Edge Runtime, not a Deno global type.
         EdgeRuntime.waitUntil(
-          admin
-            .from('rag_prompt_logs')
-            .insert({
+          (async () => {
+            const { error } = await admin.from('rag_prompt_logs').insert({
               email: user.email ?? '',
               user_id: user.id,
               session_id: sessionId,
@@ -113,12 +156,16 @@ Deno.serve(async (req) => {
               manual_id: outboundBody.manual_id,
               locale: outboundBody.answer_language ?? null,
               organization_id: organizationId,
-              seat_id: null,
-              credits_consumed: 0,
-            })
-            .then(({ error }) => {
-              if (error) console.error('[rag-chat] prompt log failed:', error);
-            })
+              seat_id: seatId,
+              credits_consumed: seatId ? 1 : 0,
+              ...usageLogFields(payload.usage),
+            });
+            if (error) console.error('[rag-chat] prompt log failed:', error);
+
+            if (seatId) {
+              await recordAiAnswerUsage(admin, seatId);
+            }
+          })()
         );
       }
     } catch {

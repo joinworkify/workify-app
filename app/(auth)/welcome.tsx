@@ -22,13 +22,13 @@ export default function WelcomeScreen() {
         <View className="flex-1" />
         <View className="gap-3 px-6 pb-8">
           <Button
-            className="bg-background h-14 rounded-xl"
+            className="bg-background h-14 rounded-lg"
             onPress={() => router.push('/(auth)/sign-in')}>
             <Text className="text-primary text-base font-semibold">Log in</Text>
           </Button>
           <Button
             variant="ghost"
-            className="bg-primary-foreground/15 h-14 rounded-xl"
+            className="bg-primary-foreground/15 h-14 rounded-lg"
             onPress={() => router.push('/(auth)/sign-up')}>
             <Text className="text-primary-foreground text-base font-semibold">
               Create a new account
