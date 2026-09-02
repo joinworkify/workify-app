@@ -9,7 +9,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "eas:sync-env": "./scripts/eas-sync-env.sh",
+    "eas:verify-build": "./scripts/verify-build-env.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
