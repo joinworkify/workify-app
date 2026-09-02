@@ -30,6 +30,7 @@ function RootNavigator() {
         <Stack.Screen name="(app)" options={{ headerShown: false, title: '' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="archived-chats" options={{ title: 'Archived Chats' }} />
+        <Stack.Screen name="manuals" options={{ title: 'Manuals' }} />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
