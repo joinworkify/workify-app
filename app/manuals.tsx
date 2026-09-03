@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CapacityBar } from '@/components/manuals/capacity-bar';
 import { ManualRow } from '@/components/manuals/manual-row';
+import { TrainingProgressBanner } from '@/components/manuals/training-progress-banner';
 import { UploadManualDialog } from '@/components/manuals/upload-manual-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Text } from '@/components/ui/text';
@@ -20,6 +21,7 @@ export default function ManualsScreen() {
     uploadPhase,
     uploadProgress,
     uploadMessage,
+    uploadTarget,
     upload,
     resetUpload,
     remove,
@@ -51,9 +53,16 @@ export default function ManualsScreen() {
             keyExtractor={(item) => item.id}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} />}
             ListHeaderComponent={
-              <View className="gap-4 p-4">
+              <View className="w-full gap-4 p-4">
                 {capacity ? <CapacityBar capacity={capacity} /> : null}
-                <View className="flex-row items-center justify-between">
+                <TrainingProgressBanner
+                  phase={uploadPhase}
+                  progress={uploadProgress}
+                  message={uploadMessage}
+                  target={uploadTarget}
+                  onDismiss={resetUpload}
+                />
+                <View className="w-full flex-row items-center justify-between">
                   <Text variant="large">Manuals</Text>
                   <UploadManualDialog
                     uploadPhase={uploadPhase}

@@ -30,7 +30,10 @@ export type UploadManualResponse = {
   jobId: string;
 };
 
-export type TrainingStatus = 'pending' | 'processing' | 'done' | 'error';
+// Mirrors sys-rag's real _run_training_job status values (rag_server.py) -- "running" while in
+// progress (never "pending"/"processing"), then terminal "done" or "error". Confirmed against a
+// real local run, not just web's client-side comment about it.
+export type TrainingStatus = 'running' | 'done' | 'error';
 
 export type TrainingStatusResponse = {
   status: TrainingStatus;

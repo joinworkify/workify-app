@@ -8,6 +8,7 @@ import { useColorScheme } from 'nativewind';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { ManualsUploadProvider } from '@/lib/manuals-upload-context';
 import { NAV_THEME } from '@/lib/theme';
 
 export const unstable_settings = {
@@ -45,7 +46,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
       <AuthProvider>
-        <RootNavigator />
+        <ManualsUploadProvider>
+          <RootNavigator />
+        </ManualsUploadProvider>
       </AuthProvider>
       <PortalHost />
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />

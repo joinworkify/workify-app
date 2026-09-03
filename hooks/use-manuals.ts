@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { fetchManuals } from '@/lib/rag/client';
 import type { ManualInfo } from '@/lib/rag/types';
@@ -19,7 +19,10 @@ export function useManuals() {
   const [defaultManualId, setDefaultManualId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  // Not a dependency-driven effect -- callers explicitly re-invoke this (e.g. every time the
+  // manual picker dialog opens) so a manual uploaded mid-session shows up without needing an app
+  // restart, since this hook otherwise only ever fetched once on mount.
+  const refresh = useCallback(() => {
     let cancelled = false;
     fetchManuals()
       .then((response) => {
@@ -28,7 +31,7 @@ export function useManuals() {
         setDefaultManualId(response.default_manual_id);
       })
       .catch(() => {
-        // Keep the fallback list already in state.
+        // Keep whichever list (fallback or last-fetched) is already in state.
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -38,5 +41,7 @@ export function useManuals() {
     };
   }, []);
 
-  return { manuals, defaultManualId, isLoading };
+  useEffect(() => refresh(), [refresh]);
+
+  return { manuals, defaultManualId, isLoading, refresh };
 }
