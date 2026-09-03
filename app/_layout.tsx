@@ -8,6 +8,7 @@ import { useColorScheme } from 'nativewind';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { ManualsUploadProvider } from '@/lib/manuals-upload-context';
 import { NAV_THEME } from '@/lib/theme';
 
 export const unstable_settings = {
@@ -30,6 +31,7 @@ function RootNavigator() {
         <Stack.Screen name="(app)" options={{ headerShown: false, title: '' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="archived-chats" options={{ title: 'Archived Chats' }} />
+        <Stack.Screen name="manuals" options={{ title: 'Manuals' }} />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -44,7 +46,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
       <AuthProvider>
-        <RootNavigator />
+        <ManualsUploadProvider>
+          <RootNavigator />
+        </ManualsUploadProvider>
       </AuthProvider>
       <PortalHost />
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />

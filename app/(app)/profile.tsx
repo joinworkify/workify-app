@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Archive, LogOut } from 'lucide-react-native';
+import { Archive, BookText, LogOut } from 'lucide-react-native';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -33,8 +33,12 @@ export default function ProfileScreen() {
         </View>
         <Button
           variant="outline"
-          onPress={() => router.push('/archived-chats')}
+          onPress={() => router.push('/manuals')}
           className="mt-4 w-full">
+          <Icon as={BookText} size={16} />
+          <Text>Manage manuals</Text>
+        </Button>
+        <Button variant="outline" onPress={() => router.push('/archived-chats')} className="w-full">
           <Icon as={Archive} size={16} />
           <Text>Archived chats</Text>
         </Button>

@@ -296,6 +296,50 @@ export async function isOrgAccessBlocked(
   return !!data?.status && BLOCKED_ORG_STATUSES.includes(data.status);
 }
 
+// --- Manuals library (row-11.3/11.4 self-service upload) --------------------------------
+// Ported near-verbatim from workify-web/lib/org/usage.ts's getOrgLibraryCapacity -- same table,
+// same formula, so the app's capacity bar and upload gate agree with web's to the page.
+export type LibraryCapacity = { usedPages: number; limitPages: number };
+
+export async function getOrgLibraryCapacity(
+  admin: SupabaseClient,
+  organizationId: string
+): Promise<LibraryCapacity> {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data: org } = await admin
+    .from('workify_organizations')
+    .select(
+      'base_library_capacity_pages, additional_capacity_per_seat_pages, purchased_extra_capacity_pages'
+    )
+    .eq('id', organizationId)
+    .single();
+
+  if (!org) return { usedPages: 0, limitPages: 0 };
+
+  const [{ count: activeSeatCount }, { data: docs }] = await Promise.all([
+    admin
+      .from('workify_seats')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+      .lte('billing_period_start', today)
+      .gte('billing_period_end', today),
+    admin
+      .from('workify_workspace_documents')
+      .select('page_count')
+      .eq('organization_id', organizationId)
+      .eq('status', 'active'),
+  ]);
+
+  const usedPages = (docs ?? []).reduce((sum: number, d: { page_count: number }) => sum + d.page_count, 0);
+  const limitPages =
+    org.base_library_capacity_pages +
+    org.additional_capacity_per_seat_pages * (activeSeatCount ?? 0) +
+    org.purchased_extra_capacity_pages;
+
+  return { usedPages, limitPages };
+}
+
 export type QuotaCheck =
   | { allowed: true; metered: true; organizationId: string; seatId: string }
   | { allowed: true; metered: false; organizationId: null; seatId: null }

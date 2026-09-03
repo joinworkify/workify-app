@@ -27,7 +27,7 @@ function pingRagHealth() {
 export default function ChatConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, appendAndPersist, updateManualId } = useChatSession(id);
-  const { manuals, defaultManualId } = useManuals();
+  const { manuals, defaultManualId, refresh: refreshManuals } = useManuals();
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,6 +164,7 @@ export default function ChatConversationScreen() {
                 manuals={manuals}
                 selectedManualId={selectedManualId}
                 onSelect={updateManualId}
+                onOpen={refreshManuals}
               />
             ) : null,
         }}

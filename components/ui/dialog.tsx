@@ -4,7 +4,14 @@ import { cn } from '@/lib/utils';
 import * as DialogPrimitive from '@rn-primitives/dialog';
 import { X } from 'lucide-react-native';
 import * as React from 'react';
-import { Platform, Text, View, type GestureResponderEvent, type ViewProps } from 'react-native';
+import {
+  Dimensions,
+  Platform,
+  Text,
+  View,
+  type GestureResponderEvent,
+  type ViewProps,
+} from 'react-native';
 import { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
@@ -17,6 +24,14 @@ const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
 const FullWindowOverlay = Platform.OS === 'ios' ? RNFullWindowOverlay : React.Fragment;
+
+// Percentage widths (this file's own `max-w-[calc(100%-2rem)]` below) don't reliably resolve
+// inside FullWindowOverlay's separate UIWindow on iOS -- a dialog with little content (e.g. a
+// one-row action menu) collapses to a narrow, content-hugging box instead of the intended
+// near-full-width sheet. A real pixel value sidesteps the percentage-resolution failure
+// entirely. Callers with their own sizing needs (e.g. manual-picker.tsx's taller list) can still
+// pass their own `style` prop, which is applied on top of this default.
+const DIALOG_CONTENT_WIDTH = Dimensions.get('window').width - 32;
 
 function DialogOverlay({
   className,
@@ -66,6 +81,7 @@ function DialogContent({
   className,
   portalHost,
   children,
+  style,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   portalHost?: string;
@@ -81,6 +97,7 @@ function DialogContent({
             }),
             className
           )}
+          style={[{ width: DIALOG_CONTENT_WIDTH }, style]}
           {...props}>
           <>{children}</>
           <DialogPrimitive.Close
