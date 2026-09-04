@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
@@ -23,13 +23,14 @@ export default function SignInScreen() {
   async function handleSignIn() {
     setError(null);
     setIsSubmitting(true);
-    const { error: signInError } = await signInWithPassword(email.trim(), password);
-    setIsSubmitting(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
+    try {
+      const { error: signInError } = await signInWithPassword(email.trim(), password);
+      if (signInError) setError(signInError.message);
+    } catch (unexpectedError) {
+      setError(unexpectedError instanceof Error ? unexpectedError.message : 'Unable to sign in.');
+    } finally {
+      setIsSubmitting(false);
     }
-    router.replace('/(app)/chats');
   }
 
   return (
@@ -90,7 +91,7 @@ export default function SignInScreen() {
             ) : null}
             <Button
               onPress={handleSignIn}
-              disabled={isSubmitting || !email || !password}
+              disabled={isSubmitting || !email.trim() || !password}
               className="mt-2 h-12 rounded-lg">
               <Text className="text-primary-foreground font-semibold">
                 {isSubmitting ? 'Signing in…' : 'Log in'}
