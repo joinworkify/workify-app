@@ -25,6 +25,7 @@ function RootNavigator() {
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
       <Stack.Protected guard={!!session}>
         {/* title: '' -- without it, the back button on screens pushed from here (e.g.
             archived-chats) falls back to this route's segment name, "(app)", as its label. */}

@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Text } from '@/components/ui/text';
 import { useAuth } from '@/lib/auth-context';
-import { bootstrapOrganization } from '@/lib/organizations';
 
 export default function SignUpScreen() {
   const { signUpWithPassword } = useAuth();
@@ -26,26 +25,21 @@ export default function SignUpScreen() {
   async function handleSignUp() {
     setError(null);
     setIsSubmitting(true);
-    const { error: signUpError, needsEmailConfirmation } = await signUpWithPassword(
-      email.trim(),
-      password
-    );
-    setIsSubmitting(false);
-
-    if (signUpError) {
-      setError(signUpError.message);
-      return;
+    try {
+      const { error: signUpError, needsEmailConfirmation } = await signUpWithPassword(
+        email.trim(),
+        password
+      );
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+      if (needsEmailConfirmation) setCheckEmail(true);
+    } catch (unexpectedError) {
+      setError(unexpectedError instanceof Error ? unexpectedError.message : 'Unable to sign up.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (needsEmailConfirmation) {
-      setCheckEmail(true);
-      return;
-    }
-
-    // A session came back immediately — this project has email confirmation disabled. Give the
-    // new mobile user an org before routing them in.
-    await bootstrapOrganization();
-    router.replace('/(app)/chats');
   }
 
   return (
@@ -66,7 +60,7 @@ export default function SignUpScreen() {
             <View className="mt-6 gap-3">
               <Text variant="p">
                 Check <Text className="font-semibold">{email}</Text> for a confirmation link,
-                then sign in.
+                then open it to return to Workify.
               </Text>
               <Button
                 variant="outline"
@@ -123,7 +117,7 @@ export default function SignUpScreen() {
               ) : null}
               <Button
                 onPress={handleSignUp}
-                disabled={isSubmitting || !email || !passwordMeetsRequirements(password)}
+                disabled={isSubmitting || !email.trim() || !passwordMeetsRequirements(password)}
                 className="mt-2 h-12 rounded-lg">
                 <Text className="text-primary-foreground font-semibold">
                   {isSubmitting ? 'Creating account…' : 'Sign up'}
