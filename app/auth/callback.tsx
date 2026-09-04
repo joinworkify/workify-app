@@ -31,7 +31,11 @@ export default function AuthCallbackScreen() {
           setError(callbackError.message);
           return;
         }
-        router.replace('/(app)/chats');
+        // '/' (not '/(app)/chats' directly) -- landing on this screen via a cold deep link
+        // doesn't reliably leave the (app)/(auth) Stack.Protected groups resolvable for a
+        // direct imperative replace into one of them. app/index.tsx already does this exact
+        // session-based routing declaratively via <Redirect>, so bounce through there instead.
+        router.replace('/');
       })
       .catch((callbackError: unknown) => {
         setError(
@@ -51,7 +55,7 @@ export default function AuthCallbackScreen() {
               Unable to confirm your account
             </Text>
             <Text className="text-destructive text-center">{error}</Text>
-            <Button variant="outline" onPress={() => router.replace('/(auth)/sign-in')}>
+            <Button variant="outline" onPress={() => router.replace('/')}>
               <Text>Back to sign in</Text>
             </Button>
           </>
